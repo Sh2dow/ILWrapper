@@ -1,6 +1,9 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Diagnostics;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using ILWrapper.Enums;
 using ILWrapper.Native;
 
@@ -50,6 +53,7 @@ namespace ILWrapper
 		public PaletteType PaletteType => this._pal_type;
 		public ImageFormat PaletteFormat => this._pal_format;
 		public OriginLocation Origin => this._origin;
+		public int Area => this.Width * this.Height;
 		public int Width => this._width;
 		public int Height => this._height;
 		public int Depth => this._depth;
@@ -73,6 +77,15 @@ namespace ILWrapper
 
 		public Image() { }
 		public Image(string file) => this.Load(file);
+		public Image(byte[] buffer) => this.Load(buffer);
+		public Image(Image image) => image.CopyTo(this);
+		public Image(System.Drawing.Image image)
+		{
+			using var ms = new MemoryStream((image.Width * image.Height) << 1);
+			image.Save(ms, image.RawFormat);
+			ms.Position = 0;
+			this.Load(ms);
+		}
 
 		private uint Initialize()
 		{
@@ -109,6 +122,14 @@ namespace ILWrapper
 			}
 		}
 
+		public byte[] GetBuffer()
+		{
+			if (this._buffer == null) return null;
+			var result = new byte[this.Size];
+			Array.Copy(this._buffer, result, this.Size);
+			return result;
+		}
+
 		#endregion
 
 		#region Load
@@ -138,6 +159,14 @@ namespace ILWrapper
 			if (!stream.CanRead) throw new IOException("Stream passed cannot be used to read data");
 
 			var count = (int)(stream.Length - stream.Position);
+
+			if (count == 0)
+			{
+
+				throw new ArgumentException("Stream position is set at the end, unable to read data");
+
+			}
+
 			var buffer = new byte[count];
 			stream.Read(buffer, 0, count);
 
@@ -151,6 +180,14 @@ namespace ILWrapper
 			if (!stream.CanRead) throw new IOException("Stream passed cannot be used to read data");
 
 			var count = (int)(stream.Length - stream.Position);
+
+			if (count == 0)
+			{
+
+				throw new ArgumentException("Stream position is set at the end, unable to read data");
+
+			}
+
 			var buffer = new byte[count];
 			stream.Read(buffer, 0, count);
 
@@ -313,8 +350,7 @@ namespace ILWrapper
 			if (this._disposed) throw new ObjectDisposedException("Image has been disposed");
 			if (!this.IsValid) throw new ILWrapperException("Image has never been loaded");
 
-			var array = this.SaveSettings(this._image_type);
-			File.WriteAllBytes(file, array);
+			File.WriteAllBytes(file, this._buffer);
 		}
 
 		public void Save(string file, ImageType type)
@@ -322,8 +358,153 @@ namespace ILWrapper
 			if (this._disposed) throw new ObjectDisposedException("Image has been disposed");
 			if (!this.IsValid) throw new ILWrapperException("Image has never been loaded");
 
+			if (type == this._image_type)
+			{
+
+				File.WriteAllBytes(file, this._buffer);
+
+			}
+			else
+			{
+
+				var array = this.SaveSettings(type);
+				File.WriteAllBytes(file, array);
+
+			}
+		}
+
+		public void Save(Stream stream)
+		{
+			if (this._disposed) throw new ObjectDisposedException("Image has been disposed");
+			if (!this.IsValid) throw new ILWrapperException("Image has never been loaded");
+
+			stream.Write(this._buffer, 0, this.Size);
+		}
+
+		public void Save(Stream stream, ImageType type)
+		{
+			if (this._disposed) throw new ObjectDisposedException("Image has been disposed");
+			if (!this.IsValid) throw new ILWrapperException("Image has never been loaded");
+
+			if (type == this._image_type)
+			{
+
+				stream.Write(this._buffer, 0, this.Size);
+
+			}
+			else
+			{
+
+				var array = this.SaveSettings(type);
+				stream.Write(array, 0, array.Length);
+
+			}
+		}
+
+		public void Save(byte[] buffer)
+		{
+			if (this._disposed) throw new ObjectDisposedException("Image has been disposed");
+			if (!this.IsValid) throw new ILWrapperException("Image has never been loaded");
+
+			if (buffer == null)
+			{
+
+				throw new ArgumentNullException(nameof(buffer));
+
+			}
+
+			if (buffer.Length < this._buffer.Length)
+			{
+
+				throw new ArgumentException("Length of buffer passed is smaller than image size");
+
+			}
+
+			Array.Copy(this._buffer, 0, buffer, 0, this.Size);
+		}
+
+		public void Save(byte[] buffer, ImageType type)
+		{
+			if (this._disposed) throw new ObjectDisposedException("Image has been disposed");
+			if (!this.IsValid) throw new ILWrapperException("Image has never been loaded");
+
+			if (buffer == null)
+			{
+
+				throw new ArgumentNullException(nameof(buffer));
+
+			}
+
 			var array = this.SaveSettings(type);
-			File.WriteAllBytes(file, array);
+
+			if (buffer.Length < array.Length)
+			{
+
+				throw new ArgumentException("Length of buffer passed is smaller than image size");
+
+			}
+
+			Array.Copy(array, 0, buffer, 0, array.Length);
+		}
+
+		public void Save(byte[] buffer, int position)
+		{
+			if (this._disposed) throw new ObjectDisposedException("Image has been disposed");
+			if (!this.IsValid) throw new ILWrapperException("Image has never been loaded");
+
+			if (buffer == null)
+			{
+
+				throw new ArgumentNullException(nameof(buffer));
+
+			}
+
+			if (position < 0 || position >= this.Size)
+			{
+
+				throw new Exception("Position should be a non-negative value and less than buffer length");
+
+			}
+
+			if (position + this.Size > buffer.Length)
+			{
+
+				throw new Exception("Array passed does not have enough space for image buffer");
+
+			}
+
+			Array.Copy(this._buffer, 0, buffer, position, this.Size);
+		}
+
+		public void Save(byte[] buffer, int position, ImageType type)
+		{
+			if (this._disposed) throw new ObjectDisposedException("Image has been disposed");
+			if (!this.IsValid) throw new ILWrapperException("Image has never been loaded");
+
+			if (buffer == null)
+			{
+
+				throw new ArgumentNullException(nameof(buffer));
+
+			}
+
+			if (position < 0 || position >= this.Size)
+			{
+
+				throw new Exception("Position should be a non-negative value and less than buffer length");
+
+			}
+
+			var array = this.SaveSettings(type);
+
+			if (position + array.Length > buffer.Length)
+			{
+
+				throw new Exception("Array passed does not have enough space for image buffer");
+
+			}
+
+			Array.Copy(array, 0, buffer, position, array.Length);
 		}
 
 		private byte[] SaveSettings(ImageType type)
@@ -378,6 +559,50 @@ namespace ILWrapper
 
 		#endregion
 
+		#region Misc
+
+		public void CopyTo(Image dest)
+		{
+			dest._array = this._array;
+			dest._bitspp = this._bitspp;
+			dest._bytespp = this._bytespp;
+			dest._channel = this._channel;
+			dest._cubemap = this._cubemap;
+			dest._data_type = this._data_type;
+			dest._depth = this._depth;
+			dest._dxtc = this._dxtc;
+			dest._face_count = this._face_count;
+			dest._format = this._format;
+			dest._height = this._height;
+			dest._image_type = this._image_type;
+			dest._layers = this._layers;
+			dest._mipmaps = this._mipmaps;
+			dest._origin = this._origin;
+			dest._pal_bytespp = this._pal_bytespp;
+			dest._pal_columns = this._pal_columns;
+			dest._pal_format = this._pal_format;
+			dest._pal_type = this._pal_type;
+			dest._width = this._width;
+			dest._buffer = new byte[this.Size];
+			Array.Copy(this._buffer, 0, dest._buffer, 0, this.Size);
+		}
+
+		public Image Clone()
+		{
+			var result = new Image();
+			this.CopyTo(result);
+			return result;
+		}
+
+		public System.Drawing.Image ToManagedImage()
+		{
+			if (!this.IsValid) throw new ArgumentNullException("Image was never loaded and has no buffer");
+			using var ms = new MemoryStream(this._buffer);
+			return System.Drawing.Image.FromStream(ms);
+		}
+
+		#endregion
+
 		#region GetInfo
 
 		private void GetImageInfo()
@@ -424,25 +649,101 @@ namespace ILWrapper
 
 		#endregion
 
+		#region Check
+
+		public static bool IsValidExportExtension(string extension)
+		{
+			return GetExportExtensions().ToList().Contains(extension.ToUpperInvariant());
+		}
+
+		public static bool IsValidImportExtension(string extension)
+		{
+			return GetImportExtensions().ToList().Contains(extension.ToUpperInvariant());
+		}
+
+		public static bool FileHasValidExportExtension(string file)
+		{
+			var extension = Path.GetExtension(file)[1..].ToUpperInvariant();
+			return GetExportExtensions().ToList().Contains(extension);
+		}
+
+		public static bool FileHasValidImportExtension(string file)
+		{
+			var extension = Path.GetExtension(file)[1..].ToUpperInvariant();
+			return GetImportExtensions().ToList().Contains(extension);
+		}
+
+		public static IEnumerable<string> GetExportExtensions()
+		{
+			var intptr_t = IL.GetString((uint)ILString.ExportExtensions);
+			if (intptr_t == IntPtr.Zero)
+			{
+
+				var error = (ErrorType)IL.GetError();
+				throw new ILWrapperException(error);
+
+			}
+			
+			string str = Marshal.PtrToStringAnsi(intptr_t);
+			string[] array = str.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+			for (int i = 0; i < array.Length; ++i) yield return array[i].ToUpperInvariant();
+		}
+
+		public static IEnumerable<string> GetImportExtensions()
+		{
+			var intptr_t = IL.GetString((uint)ILString.ImportExtensions);
+			if (intptr_t == IntPtr.Zero)
+			{
+
+				var error = (ErrorType)IL.GetError();
+				throw new ILWrapperException(error);
+
+			}
+
+			string str = Marshal.PtrToStringAnsi(intptr_t);
+			string[] array = str.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+			
+			for (int i = 0; i < array.Length; i++)
+			{
+
+				str = array[i].ToUpperInvariant();
+				yield return str == "DCMDDS" ? "DCM" : str;
+
+			}
+		}
+
+		#endregion
+
 		#region Override
 
 		public override bool Equals(object obj) => obj is Image image && this == image;
 
 		public static bool operator ==(Image img1, Image img2)
 		{
-			return false;
+			if (img1.Size != img2.Size) return false;
+			
+			bool result = true;
+
+			for (int i = 0; i < img1.Size; ++i) result &= img1._buffer[i] == img2._buffer[i];
+
+			return result;
 		}
 
 		public static bool operator !=(Image img1, Image img2) => !(img1 == img2);
 
 		public override int GetHashCode()
 		{
-			return 0;
+			int result = 1;
+
+			for (int i = 0; i < this.Size; ++i) result = HashCode.Combine(result, this._buffer[i]);
+
+			return result;
 		}
 
 		public override string ToString()
 		{
-			return String.Empty;
+			return $"Type: {this.ImageType} | Format: {this.Format}";
 		}
 
 		#endregion

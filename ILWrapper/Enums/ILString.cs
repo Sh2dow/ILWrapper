@@ -58,6 +58,16 @@
 		/// <summary>
 		/// 
 		/// </summary>
-		CHEADERHead = 1826
+		CHEADERHead = 1826,
+
+		/// <summary>
+		/// 
+		/// </summary>
+		ImportExtensions = 7937,
+
+		/// <summary>
+		/// 
+		/// </summary>
+		ExportExtensions = 7938,
 	}
 }
