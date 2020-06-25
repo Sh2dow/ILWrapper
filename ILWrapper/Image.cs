@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Diagnostics;
 using ILWrapper.Enums;
 using ILWrapper.Native;
 
@@ -7,6 +8,7 @@ using ILWrapper.Native;
 
 namespace ILWrapper
 {
+	[DebuggerDisplay("ImageType: {ImageType} | Width: {Width} | Height: {Height}")]
 	public sealed class Image
 	{
 		#region Fields
@@ -39,6 +41,7 @@ namespace ILWrapper
 		#region Properties
 
 		public static Image Default => new Image();
+		public bool IsValid => this.Size > 0;
 		public int Size => this._buffer?.Length ?? -1;
 		public ImageType ImageType => this._image_type;
 		public ImageFormat Format => this._format;
@@ -82,6 +85,29 @@ namespace ILWrapper
 			IL.DeleteImage(id);
 			IL.ShutDown();
 		}
+		private ErrorType ImageToNative(uint id, bool gettype)
+		{
+			unsafe
+			{
+
+				fixed (byte* ptr = &this._buffer[0])
+				{
+
+					var intptr_t = new IntPtr(ptr);
+					if (gettype) this._image_type = (ImageType)IL.DetermineType(intptr_t, (uint)this.Size);
+					if (!IL.Load((uint)this._image_type, intptr_t, (uint)this.Size))
+					{
+
+						var error = (ErrorType)IL.GetError();
+						return error;
+
+					}
+					else return ErrorType.NoError;
+					
+				}
+
+			}
+		}
 
 		#endregion
 
@@ -96,9 +122,19 @@ namespace ILWrapper
 			this.LoadSettings(buffer);
 		}
 
+		public void Load(string file, ImageType type)
+		{
+			if (this._disposed) throw new ObjectDisposedException("Image has been disposed");
+			if (!File.Exists(file)) throw new FileNotFoundException($"File {file} does not exist");
+			var buffer = File.ReadAllBytes(file);
+
+			this.LoadSettings(buffer, type);
+		}
+
 		public void Load(Stream stream)
 		{
 			if (this._disposed) throw new ObjectDisposedException("Image has been disposed");
+			if (stream is null) throw new ArgumentNullException(nameof(stream));
 			if (!stream.CanRead) throw new IOException("Stream passed cannot be used to read data");
 
 			var count = (int)(stream.Length - stream.Position);
@@ -108,14 +144,55 @@ namespace ILWrapper
 			this.LoadSettings(buffer);
 		}
 
-		public void Load(Stream stream, int length)
+		public void Load(Stream stream, ImageType type)
 		{
+			if (this._disposed) throw new ObjectDisposedException("Image has been disposed");
+			if (stream is null) throw new ArgumentNullException(nameof(stream));
+			if (!stream.CanRead) throw new IOException("Stream passed cannot be used to read data");
 
+			var count = (int)(stream.Length - stream.Position);
+			var buffer = new byte[count];
+			stream.Read(buffer, 0, count);
+
+			this.LoadSettings(buffer, type);
 		}
 
-		public void Load(Stream stream, int position, int length)
+		public void Load(Stream stream, int count)
 		{
+			if (this._disposed) throw new ObjectDisposedException("Image has been disposed");
+			if (stream is null) throw new ArgumentNullException(nameof(stream));
+			if (!stream.CanRead) throw new IOException("Stream passed cannot be used to read data");
+			
+			if (count <= 0 || stream.Position + count < stream.Length)
+			{
 
+				throw new Exception("Number of bytes read should be a non-negative value and not exceed buffer length");
+
+			}
+
+			var buffer = new byte[count];
+			stream.Read(buffer, 0, count);
+
+			this.LoadSettings(buffer);
+		}
+
+		public void Load(Stream stream, int count, ImageType type)
+		{
+			if (this._disposed) throw new ObjectDisposedException("Image has been disposed");
+			if (stream is null) throw new ArgumentNullException(nameof(stream));
+			if (!stream.CanRead) throw new IOException("Stream passed cannot be used to read data");
+
+			if (count <= 0 || stream.Position + count < stream.Length)
+			{
+
+				throw new Exception("Number of bytes read should be a non-negative value and not exceed buffer length");
+
+			}
+
+			var buffer = new byte[count];
+			stream.Read(buffer, 0, count);
+
+			this.LoadSettings(buffer, type);
 		}
 
 		public void Load(byte[] buffer)
@@ -123,6 +200,13 @@ namespace ILWrapper
 			var array = new byte[buffer.Length];
 			Array.Copy(buffer, 0, array, 0, buffer.Length);
 			this.LoadSettings(array);
+		}
+
+		public void Load(byte[] buffer, ImageType type)
+		{
+			var array = new byte[buffer.Length];
+			Array.Copy(buffer, 0, array, 0, buffer.Length);
+			this.LoadSettings(array, type);
 		}
 
 		public void Load(byte[] buffer, int position, int count)
@@ -144,7 +228,7 @@ namespace ILWrapper
 			if (count <= 0 || position + count > buffer.Length)
 			{
 
-				throw new Exception("Count should be a non-negative value and not exceed buffer length");
+				throw new Exception("Number of bytes read should be a non-negative value and not exceed buffer length");
 
 			}
 
@@ -153,25 +237,134 @@ namespace ILWrapper
 			this.LoadSettings(array);
 		}
 
+		public void Load(byte[] buffer, int position, int count, ImageType type)
+		{
+			if (buffer == null || buffer.Length == 0)
+			{
+
+				throw new Exception("Buffer cannot be null or empty");
+
+			}
+
+			if (position < 0 || position >= buffer.Length)
+			{
+
+				throw new Exception("Position should be a non-negative value and less than buffer length");
+
+			}
+
+			if (count <= 0 || position + count > buffer.Length)
+			{
+
+				throw new Exception("Number of bytes read should be a non-negative value and not exceed buffer length");
+
+			}
+
+			var array = new byte[count];
+			Array.Copy(buffer, position, array, 0, count);
+			this.LoadSettings(array, type);
+		}
+
 		private void LoadSettings(byte[] buffer)
 		{
 			this._buffer = buffer;
 			var id = this.Initialize();
 
+			var error = this.ImageToNative(id, true);
+
+			if (error != ErrorType.NoError)
+			{
+
+				this.Release(id);
+				throw new ILWrapperException(error);
+
+			}
+
+			this.GetImageInfo();
+			this.Release(id);
+		}
+
+		private void LoadSettings(byte[] buffer, ImageType type)
+		{
+			this._buffer = buffer;
+			this._image_type = type;
+			var id = this.Initialize();
+
+			var error = this.ImageToNative(id, false);
+
+			if (error != ErrorType.NoError)
+			{
+
+				this.Release(id);
+				throw new ILWrapperException(error);
+
+			}
+
+			this.GetImageInfo();
+			this.Release(id);
+		}
+
+		#endregion
+
+		#region Save
+
+		public void Save(string file)
+		{
+			if (this._disposed) throw new ObjectDisposedException("Image has been disposed");
+			if (!this.IsValid) throw new ILWrapperException("Image has never been loaded");
+
+			var array = this.SaveSettings(this._image_type);
+			File.WriteAllBytes(file, array);
+		}
+
+		public void Save(string file, ImageType type)
+		{
+			if (this._disposed) throw new ObjectDisposedException("Image has been disposed");
+			if (!this.IsValid) throw new ILWrapperException("Image has never been loaded");
+
+			var array = this.SaveSettings(type);
+			File.WriteAllBytes(file, array);
+		}
+
+		private byte[] SaveSettings(ImageType type)
+		{
+			var id = this.Initialize();
+
+			var error = this.ImageToNative(id, false);
+			
+			if (error != ErrorType.NoError)
+			{
+			
+				this.Release(id);
+				throw new ILWrapperException(error);
+			
+			}
+
+			uint size = IL.SaveImage((uint)type, IntPtr.Zero, 0);
+
+			if (size == 0)
+			{
+
+				error = (ErrorType)IL.GetError();
+				this.Release(id);
+				throw new ILWrapperException(error);
+
+			}
+
+			var array = new byte[size];
+
 			unsafe
 			{
 
-				fixed (byte* ptr = &this._buffer[0])
+				fixed (byte* ptr = &array[0])
 				{
 
-					var intptr_t = new IntPtr(ptr);
-					this._image_type = (ImageType)IL.DetermineType(intptr_t, (uint)this.Size);
-					if (!IL.Load((uint)this.ImageType, intptr_t, (uint)this.Size))
+					if (IL.SaveImage((uint)type, new IntPtr(ptr), size) == 0)
 					{
 
-						var error = (ErrorType)IL.GetError();
+						error = (ErrorType)IL.GetError();
 						this.Release(id);
-						throw new Exception($"Error of type {error} has occured");
+						throw new ILWrapperException(error);
 
 					}
 
@@ -179,8 +372,8 @@ namespace ILWrapper
 
 			}
 
-			this.GetImageInfo();
 			this.Release(id);
+			return array;
 		}
 
 		#endregion

@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
+using System.IO;
+using ILWrapper.Enums;
+
+
 
 namespace ILWrapper
 {
@@ -11,8 +14,11 @@ namespace ILWrapper
 			string dds = "DDS.dds";
 			string png = "PNG.png";
 
-			var image = new Image(png);
+			var image = new Image();
 
+			image.Load(dds);
+
+			image.Save("TEST.png", ImageType.PNG);
 
 			int aaa = 0;
 		}
