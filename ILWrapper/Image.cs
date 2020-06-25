@@ -1,20 +1,18 @@
 ﻿using System;
 using System.IO;
-using System.Collections.Generic;
-using System.Text;
 using ILWrapper.Enums;
 using ILWrapper.Native;
 
 
 
-namespace ILWrapper.Drawing
+namespace ILWrapper
 {
-	public sealed class Image : IDisposable, IEquatable<Image>
+	public sealed class Image
 	{
-		private bool _disposed = false;
-		private uint _id;
-		private byte[] _buffer;
+		#region Fields
 
+		private bool _disposed = false;
+		private byte[] _buffer;
 		private ImageType _image_type;
 		private ImageFormat _format;
 		private CompressedDataFormat _dxtc;
@@ -36,6 +34,11 @@ namespace ILWrapper.Drawing
 		private int _mipmaps;
 		private int _layers;
 
+		#endregion
+
+		#region Properties
+
+		public static Image Default => new Image();
 		public int Size => this._buffer?.Length ?? -1;
 		public ImageType ImageType => this._image_type;
 		public ImageFormat Format => this._format;
@@ -61,37 +64,39 @@ namespace ILWrapper.Drawing
 		public bool IsCubeMap => this._cubemap != CubeMapOrientation.None && this._cubemap != CubeMapOrientation.Sphere;
 		public bool IsSphereMap => this._cubemap == CubeMapOrientation.Sphere;
 
-		public static Image Default => new Image();
+		#endregion
+
+		#region Main
 
 		public Image() { }
 		public Image(string file) => this.Load(file);
-		internal Image(uint id) => this._id = id;
-		~Image()
-		{
-			this.Dispose(false);
-		}
 
-		private void Initialize()
+		private uint Initialize()
 		{
-			this._id = IL.GenerateImage();
-			IL.BindImage(this._id);
+			var id = IL.GenerateImage();
+			IL.BindImage(id);
+			return id;
 		}
-		private void Release()
+		private void Release(uint id)
 		{
-			IL.DeleteImage(this._id);
+			IL.DeleteImage(id);
 			IL.ShutDown();
 		}
 
-		public bool Load(string file)
+		#endregion
+
+		#region Load
+
+		public void Load(string file)
 		{
 			if (this._disposed) throw new ObjectDisposedException("Image has been disposed");
 			if (!File.Exists(file)) throw new FileNotFoundException($"File {file} does not exist");
 			var buffer = File.ReadAllBytes(file);
 
-			return this.LoadSettings(buffer);
+			this.LoadSettings(buffer);
 		}
 
-		public bool Load(Stream stream)
+		public void Load(Stream stream)
 		{
 			if (this._disposed) throw new ObjectDisposedException("Image has been disposed");
 			if (!stream.CanRead) throw new IOException("Stream passed cannot be used to read data");
@@ -100,31 +105,27 @@ namespace ILWrapper.Drawing
 			var buffer = new byte[count];
 			stream.Read(buffer, 0, count);
 
-			return this.LoadSettings(buffer);
+			this.LoadSettings(buffer);
 		}
 
-		public bool Load(Stream stream, int length)
+		public void Load(Stream stream, int length)
 		{
 
-
-			return false;
 		}
 
-		public bool Load(Stream stream, int position, int length)
+		public void Load(Stream stream, int position, int length)
 		{
 
-
-			return true;
 		}
 
-		public bool Load(byte[] buffer)
+		public void Load(byte[] buffer)
 		{
 			var array = new byte[buffer.Length];
 			Array.Copy(buffer, 0, array, 0, buffer.Length);
-			return this.LoadSettings(array);
+			this.LoadSettings(array);
 		}
 
-		public bool Load(byte[] buffer, int position, int count)
+		public void Load(byte[] buffer, int position, int count)
 		{
 			if (buffer == null || buffer.Length == 0)
 			{
@@ -149,13 +150,13 @@ namespace ILWrapper.Drawing
 
 			var array = new byte[count];
 			Array.Copy(buffer, position, array, 0, count);
-			return this.LoadSettings(array);
+			this.LoadSettings(array);
 		}
 
-		private bool LoadSettings(byte[] buffer)
+		private void LoadSettings(byte[] buffer)
 		{
 			this._buffer = buffer;
-			this.Initialize();
+			var id = this.Initialize();
 
 			unsafe
 			{
@@ -168,7 +169,9 @@ namespace ILWrapper.Drawing
 					if (!IL.Load((uint)this.ImageType, intptr_t, (uint)this.Size))
 					{
 
-						return false;
+						var error = (ErrorType)IL.GetError();
+						this.Release(id);
+						throw new Exception($"Error of type {error} has occured");
 
 					}
 
@@ -177,9 +180,12 @@ namespace ILWrapper.Drawing
 			}
 
 			this.GetImageInfo();
-
-			return false;
+			this.Release(id);
 		}
+
+		#endregion
+
+		#region GetInfo
 
 		private void GetImageInfo()
 		{
@@ -223,21 +229,18 @@ namespace ILWrapper.Drawing
 		private void GetLayers() => this._layers = IL.GetInteger((uint)ILInteger.ImageLayerCount) + 1;
 		private void GetCubeMap() => this._cubemap = (CubeMapOrientation)IL.GetInteger((uint)ILInteger.CubeFlags);
 
+		#endregion
 
-		public static bool IsValid(Image image)
-		{
-			return !(image is null) && image._id != 0;
-		}
+		#region Override
 
-		public bool Equals(Image other)
-		{
-			return false;
-		}
+		public override bool Equals(object obj) => obj is Image image && this == image;
 
-		public override bool Equals(object obj)
+		public static bool operator ==(Image img1, Image img2)
 		{
 			return false;
 		}
+
+		public static bool operator !=(Image img1, Image img2) => !(img1 == img2);
 
 		public override int GetHashCode()
 		{
@@ -249,18 +252,6 @@ namespace ILWrapper.Drawing
 			return String.Empty;
 		}
 
-		/// <summary>
-		/// 
-		/// </summary>
-		public void Dispose()
-		{
-			this.Dispose(true);
-			GC.SuppressFinalize(this);
-		}
-
-		protected void Dispose(bool disposing)
-		{
-			
-		}
+		#endregion
 	}
 }
