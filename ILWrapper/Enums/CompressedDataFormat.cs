@@ -33,7 +33,7 @@
 		/// <summary>
 		/// 
 		/// </summary>
-		None = 0x70B,
+		NONE = 0x70B,
 
 		/// <summary>
 		/// 

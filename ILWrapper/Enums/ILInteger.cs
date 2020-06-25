@@ -18,6 +18,11 @@
 		/// <summary>
 		/// 
 		/// </summary>
+		DXTCFormat = 1805,
+
+		/// <summary>
+		/// 
+		/// </summary>
 		JPGQuality = 1809,
 
 		/// <summary>
@@ -78,12 +83,37 @@
 		/// <summary>
 		/// 
 		/// </summary>
+		ImageFormat = 3562,
+
+		/// <summary>
+		/// 
+		/// </summary>
+		ImageType = 3563,
+
+		/// <summary>
+		/// 
+		/// </summary>
+		PaletteType = 3564,
+
+		/// <summary>
+		/// 
+		/// </summary>
+		PaletteSize = 3565,
+
+		/// <summary>
+		/// 
+		/// </summary>
 		ImagePaletteBytesPerPixel = 3566,
 
 		/// <summary>
 		/// 
 		/// </summary>
 		ImagePaletteColumnCount = 3567,
+
+		/// <summary>
+		/// 
+		/// </summary>
+		PaletteFormat = 3568,
 
 		/// <summary>
 		/// 
@@ -139,6 +169,16 @@
 		/// 
 		/// </summary>
 		ImageOffsetY = 3580,
+
+		/// <summary>
+		/// 
+		/// </summary>
+		CubeFlags = 3581,
+
+		/// <summary>
+		/// 
+		/// </summary>
+		ImageOrigin = 3582,
 
 		/// <summary>
 		/// 

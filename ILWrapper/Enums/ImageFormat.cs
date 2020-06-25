@@ -3,7 +3,7 @@
 	/// <summary>
 	/// 
 	/// </summary>
-	public enum ColorFormat
+	public enum ImageFormat
 	{
 		/// <summary>
 		/// 

@@ -43,6 +43,6 @@
 		/// <summary>
 		/// 
 		/// </summary>
-		All = 0x10000
+		Sphere = 0x10000
 	}
 }
