@@ -10,6 +10,12 @@ namespace ILWrapper.Drawing
 {
 	public sealed class Image : IDisposable, IEquatable<Image>
 	{
+		private bool _disposed = false;
+		private int _id;
+
+		public static Image Default => new Image();
+
+
 
 
 
