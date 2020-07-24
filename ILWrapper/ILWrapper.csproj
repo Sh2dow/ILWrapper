@@ -3,6 +3,11 @@
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <OutputType>Library</OutputType>
+    <Version>1.0.1</Version>
+    <Copyright>Copyright © 2020 MaxHwoy</Copyright>
+    <Company>MaxHwoy</Company>
+    <Description>Wrapper .NET Core library around DevIL, IL, and ILU libraries.</Description>
+    <Authors>MaxHwoy</Authors>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
