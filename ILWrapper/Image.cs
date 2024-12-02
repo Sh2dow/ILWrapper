@@ -79,13 +79,13 @@ namespace ILWrapper
 		public Image(string file) => this.Load(file);
 		public Image(byte[] buffer) => this.Load(buffer);
 		public Image(Image image) => image.CopyTo(this);
-		public Image(System.Drawing.Image image)
-		{
-			using var ms = new MemoryStream((image.Width * image.Height) << 1);
-			image.Save(ms, image.RawFormat);
-			ms.Position = 0;
-			this.Load(ms);
-		}
+		// public Image(System.Drawing.Image image)
+		// {
+		// 	using var ms = new MemoryStream((image.Width * image.Height) << 1);
+		// 	image.Save(ms, image.RawFormat);
+		// 	ms.Position = 0;
+		// 	this.Load(ms);
+		// }
 
 		private uint Initialize()
 		{
@@ -594,12 +594,12 @@ namespace ILWrapper
 			return result;
 		}
 
-		public System.Drawing.Image ToManagedImage()
-		{
-			if (!this.IsValid) throw new ArgumentNullException("Image was never loaded and has no buffer");
-			using var ms = new MemoryStream(this._buffer);
-			return System.Drawing.Image.FromStream(ms);
-		}
+		// public System.Drawing.Image ToManagedImage()
+		// {
+		// 	if (!this.IsValid) throw new ArgumentNullException("Image was never loaded and has no buffer");
+		// 	using var ms = new MemoryStream(this._buffer);
+		// 	return System.Drawing.Image.FromStream(ms);
+		// }
 
 		#endregion
 
